@@ -1,107 +1,75 @@
-# vinext-starter
+# Oracle HCM Approvals Academy
 
-A clean full-stack starter running on
-[vinext](https://github.com/cloudflare/vinext), with optional Cloudflare D1 and
-Drizzle support.
+A pure Next.js (JavaScript) full-stack web application for Oracle HCM learning, practice tasks, mock interviews, and trainee/trainer workflows.
 
-## Prerequisites
+## Tech Stack
 
-- Node.js `>=22.13.0`
-- Linux with `flock`, `curl`, and GNU `timeout`
+- **Framework**: Next.js (App Router, Pure JavaScript / JSX)
+- **Database**: MongoDB with Mongoose
+- **File & Media Storage**: Cloudinary
+- **Authentication**: JWT (`jsonwebtoken`) & `bcryptjs` with secure HTTP-only cookies
+- **Styling**: Bootstrap 5 + Bootstrap Icons + Custom Academy CSS
 
-## Sites Lifecycle
+## Key Features
 
-The Sites lifecycle CLI runs the locked dependency install before returning this checkout. Edit the source under `app/`, then checkpoint when a coherent milestone is ready to inspect or share. The remote Sites builder runs `npm run build` against the pushed commit. Do not repeat install or build as a normal pre-checkpoint step.
+- **Sequential Curriculum**: Interactive modules covering DFF, EFF, KFF, Approvals, Absence, Journeys, OTBI, HDL, Fast Formula, Work Schedules, Operations, Redwood, and Security.
+- **Trainee Portal**: Registration, personal dashboard, progress tracking, time logging, and sequential task unlocking.
+- **Task Workspace**: Task document submissions with Cloudinary attachments and trainer review workflows.
+- **Mock Interviews**: Interactive scenario interview simulator with audio recording support and AI evaluations.
+- **Trainer & Admin Console**: Role manager, content manager (video/resource attachments), trainee approvals, and voice interview review.
 
-This starter does not use `wrangler.jsonc`.
+## Environment Configuration
 
-`install:ci` is intentionally a single, non-retrying `npm ci`. It refuses a concurrent install for the same project, consumes a matching image-seeded npm cache with `--prefer-offline` while retaining registry fallback for a missing cache object, otherwise downloads and verifies the complete vinext tarball recorded in `package-lock.json`, limits npm to one socket, and terminates a stalled install. `build` applies a short timeout. These helpers target Linux and use GNU `timeout`; they are not native macOS scripts.
+Create a `.env.local` file in the project root:
 
-Scripts that need writable project-scoped home, npm, XDG, and temporary paths use `scripts/sites-env.sh`. The `dev` and `start` scripts honor the caller's runtime environment and keep Wrangler logs inside the checkout. The generated `.sites-runtime/` directory is disposable and ignored by Git.
+```env
+# MongoDB Connection
+MONGODB_URI=mongodb+srv://<username>:<password>@<cluster>.mongodb.net/chc_academy?retryWrites=true&w=majority
 
-## Included Shape
+# JWT Authentication
+JWT_SECRET=your-super-secret-jwt-key-min-32-chars
 
-- edit site code under `app/`
-- `app/chatgpt-auth.ts` provides optional dispatch-owned ChatGPT sign-in helpers
-- `.openai/hosting.json` declares optional Sites D1 and R2 bindings
-- `vite.config.ts` simulates declared bindings for local development
-- `db/index.ts` reads the D1 binding from the Cloudflare Worker environment
-- `db/schema.ts` starts intentionally empty
-- `examples/d1/` contains an optional D1 example surface
-- `drizzle.config.ts` supports local migration generation when needed
+# Cloudinary (File & Audio Uploads)
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
 
-## Workspace Auth Headers
-
-OpenAI workspace sites can read the current user's email from
-`oai-authenticated-user-email`.
-
-SIWC-authenticated workspace sites may also receive
-`oai-authenticated-user-full-name` when the user's SIWC profile has a non-empty
-`name` claim. The full-name value is percent-encoded UTF-8 and is accompanied by
-`oai-authenticated-user-full-name-encoding: percent-encoded-utf-8`.
-
-Treat the full name as optional and fall back to email when it is absent:
-
-```tsx
-import { headers } from "next/headers";
-
-export default async function Home() {
-  const requestHeaders = await headers();
-  const email = requestHeaders.get("oai-authenticated-user-email");
-  const encodedFullName = requestHeaders.get("oai-authenticated-user-full-name");
-  const fullName =
-    encodedFullName &&
-    requestHeaders.get("oai-authenticated-user-full-name-encoding") ===
-      "percent-encoded-utf-8"
-      ? decodeURIComponent(encodedFullName)
-      : null;
-
-  const displayName = fullName ?? email;
-  // ...
-}
+# Admin / Owner Access
+ADMIN_EMAIL=admin@example.com
+OWNER_EMAIL=admin@example.com
 ```
 
-## Optional Dispatch-Owned ChatGPT Sign-In
+## Getting Started
 
-Import the ready-to-use helpers from `app/chatgpt-auth.ts` when the site needs
-optional or required ChatGPT sign-in:
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
 
-- Use `getChatGPTUser()` for optional signed-in UI.
-- Use `requireChatGPTUser(returnTo)` for server-rendered pages that should send
-  anonymous visitors through Sign in with ChatGPT.
-- Use `chatGPTSignInPath(returnTo)` and `chatGPTSignOutPath(returnTo)` for
-  browser links or actions.
-- Pass a same-origin relative `returnTo` path for the destination after sign-in
-  or sign-out. The helper validates and safely encodes it.
-- Mark protected pages with `export const dynamic = "force-dynamic"` because
-  they depend on per-request identity headers.
+2. Run development server:
+   ```bash
+   npm run dev
+   ```
 
-Dispatch owns `/signin-with-chatgpt`, `/signout-with-chatgpt`, `/callback`, the
-OAuth cookies, and identity header injection. Do not implement app routes for
-those reserved paths. Routes that do not import and call the helper remain
-anonymous-compatible.
+3. Build for production:
+   ```bash
+   npm run build
+   ```
 
-SIWC establishes identity only; it does not prove workspace membership. Use the
-Sites hosting platform's access policy controls for workspace-wide restrictions,
-or enforce explicit server-side membership or allowlist checks.
+4. Start production server:
+   ```bash
+   npm start
+   ```
 
-Use SIWC for account pages, user-specific dashboards, saved records, and write
-actions tied to the current ChatGPT user. Leave public content anonymous.
+## Project Structure
 
-## Diagnostic Commands
-
-- `npm run install:ci`: perform the one bounded lockfile install
-- `npm run dev`: start the Vite/Vinext development server
-- `npm run build`: build the deployable Sites artifact
-- `npm run start`: start the built Vinext application
-- `npm test`: build and verify the rendered development-preview metadata
-- `npm run db:generate`: generate Drizzle migrations after schema changes
-
-Use build commands for targeted diagnosis after a remote failure, not as part of the normal checkpoint path.
-
-The timeout defaults can be overridden for a controlled canary with `SITES_INSTALL_TIMEOUT`, `SITES_INSTALL_KILL_AFTER`, `SITES_BUILD_TIMEOUT`, and `SITES_BUILD_KILL_AFTER`. A timeout fails the command; the helpers never retry an unchanged install or build.
-
-## Learn More
-
-- [vinext Documentation](https://github.com/cloudflare/vinext)
-- [Drizzle D1 Guide](https://orm.drizzle.team/docs/get-started/d1-new)
+- `app/`: Pure Next.js App Router pages and components (`.jsx` and `.js`)
+  - `app/api/`: Backend API route handlers (`route.js`)
+  - `app/dashboard/`: Trainee dashboard
+  - `app/task-workspace/`: Submissions workspace
+  - `app/interview/`: Mock interview simulator
+  - `app/trainer/`: Trainer management consoles
+  - `app/admin/`: Role management
+- `lib/`: Core utility libraries (MongoDB client, JWT auth, Cloudinary client)
+- `models/`: Mongoose models (User, TraineeProfile, TaskDocument, etc.)
+- `public/`: Static assets and branding

@@ -1,0 +1,97 @@
+"use client";
+import {useEffect,useMemo,useState} from "react";
+import "./trainer.css";
+import "./trainer-extra.css";
+
+function mondayOf(date=new Date()){
+  const d=new Date(date),day=d.getUTCDay()||7;
+  d.setUTCDate(d.getUTCDate()-day+1);
+  return d.toISOString().slice(0,10);
+}
+
+const labels={not_started:"Not started",in_progress:"In progress",submitted:"Submitted",reviewed:"Reviewed",completed:"Completed"};
+
+export default function TrainerConsole({trainerName,signOut,admin,approver}){
+ const[trainees,setTrainees]=useState([]),[progress,setProgress]=useState([]),[timeLogs,setTimeLogs]=useState([]),[documents,setDocuments]=useState([]),[scores,setScores]=useState({}),[selected,setSelected]=useState(""),[cohort,setCohort]=useState("All"),[queueOnly,setQueueOnly]=useState(false),[feedback,setFeedback]=useState({}),[level,setLevel]=useState(0),[levelNote,setLevelNote]=useState(""),[message,setMessage]=useState(""),[loading,setLoading]=useState(true);
+ const[reviewMode,setReviewMode]=useState({}),[aiInput,setAiInput]=useState({}),[aiDraft,setAiDraft]=useState({}),[aiError,setAiError]=useState({}),[aiLoading,setAiLoading]=useState("");
+
+ async function load(){
+   const r=await fetch("/api/trainer");
+   const d=await r.json();
+   setTrainees(d.trainees||[]);
+   setProgress(d.progress||[]);
+   setTimeLogs(d.timeLogs||[]);
+   setSelected(s=>s||d.trainees?.[0]?.email||"");
+   setLoading(false);
+ }
+ useEffect(()=>{load()},[]);
+
+ const cohorts=useMemo(()=>["All",...Array.from(new Set(trainees.map(t=>t.cohort))).sort()],[trainees]);
+ const visible=trainees.filter(t=>cohort==="All"||t.cohort===cohort),person=trainees.find(t=>t.email===selected);
+ const personProgress=progress.filter(p=>p.email===selected&&(!queueOnly||p.status==="submitted")).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt));
+ const currentWeek=mondayOf(),personWeek=timeLogs.filter(x=>x.email===selected&&x.weekStart===currentWeek),designWeek=personWeek.reduce((n,x)=>n+x.designMinutes,0)/60,configurationWeek=personWeek.reduce((n,x)=>n+x.configurationMinutes,0)/60,uatWeek=personWeek.reduce((n,x)=>n+x.uatMinutes,0)/60,effortWeek=designWeek+configurationWeek+uatWeek;
+ const submitted=progress.filter(p=>p.status==="submitted").length,reviewed=progress.filter(p=>p.status==="reviewed"||p.status==="completed").length;
+
+ async function selectPerson(t){
+   setSelected(t.email);
+   setLevel(t.approvedLevel);
+   setLevelNote(t.levelFeedback);
+   setMessage("");
+   const d=await fetch(`/api/documents?email=${encodeURIComponent(t.email)}`).then(r=>r.json());
+   setDocuments(d.documents||[]);
+ }
+
+ function taskScores(p){
+   return scores[p.itemId]||[p.requirementScore,p.designScore,p.uatScore,p.evidenceScore];
+ }
+
+ function setTaskScore(p,i,value){
+   const next=[...taskScores(p)];
+   next[i]=value;
+   setScores({...scores,[p.itemId]:next});
+ }
+
+ async function review(p,decision){
+   const s=taskScores(p);
+   const r=await fetch("/api/trainer",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({action:"review_task",email:p.email,itemType:p.itemType,itemId:p.itemId,decision,feedback:feedback[p.itemId]??p.trainerFeedback,requirementScore:s[0],designScore:s[1],uatScore:s[2],evidenceScore:s[3]})});
+   if(r.ok){setMessage(`${p.itemId} updated`);load()}
+ }
+
+ async function generateAiReview(p){
+   setAiLoading(p.itemId);
+   setAiError({...aiError,[p.itemId]:""});
+   const r=await fetch("/api/ai-review",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({taskId:p.itemId,title:p.title,area:p.area,level:p.level,traineeNotes:p.notes,reviewText:aiInput[p.itemId]||""})});
+   const d=await r.json();
+   setAiLoading("");
+   if(!r.ok){setAiError(x=>({...x,[p.itemId]:d.error||"AI review could not be completed."}));return}
+   setAiDraft(x=>({...x,[p.itemId]:d.review}));
+ }
+
+ function applyAiDraft(p){
+   const d=aiDraft[p.itemId];
+   if(!d)return;
+   setScores(x=>({...x,[p.itemId]:[d.scores.requirement,d.scores.design,d.scores.uat,d.scores.evidence]}));
+   setFeedback(x=>({...x,[p.itemId]:d.feedback}));
+   setMessage(`${p.itemId}: AI draft applied — review and edit before saving`);
+ }
+
+ async function approveLevel(){
+   if(!person)return;
+   const r=await fetch("/api/trainer",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({action:"approve_level",email:person.email,approvedLevel:level,feedback:levelNote})});
+   if(r.ok){setMessage(`${person.fullName}: approved level ${level||"not set"}`);load()}
+ }
+
+ if(loading)return <main className="trainer-shell"><p>Loading trainer console…</p></main>;
+
+ return <main className="trainer-shell">
+  <header><a href="/">CHC · ORACLE HCM <span>TRAINER CONSOLE</span></a><nav><a href="/trainer/content">Content</a><a href="/trainer/interviews">Voice interviews</a>{approver&&<a href="/trainer-approvals">Trainer requests</a>}{admin&&<a href="/admin">Manage roles</a>}<a href="/dashboard">My training</a><a href="/">Academy</a><a href={signOut}>Sign out</a></nav></header>
+  <section className="trainer-hero"><div><small>TRAINER ACCESS · {trainerName.toUpperCase()}</small><h1>Training oversight</h1><p>Review evidence, return actionable feedback and approve demonstrated levels.</p></div><div><article><b>{trainees.length}</b><span>Registered trainees</span></article><article><b>{submitted}</b><span>Awaiting review</span></article><article><b>{reviewed}</b><span>Reviewed tasks</span></article></div></section>
+  <section className="trainer-layout"><aside className="trainee-list"><div><small>TRAINEES</small><select value={cohort} onChange={e=>setCohort(e.target.value)}>{cohorts.map(c=><option key={c}>{c}</option>)}</select></div>{visible.map(t=>{const ps=progress.filter(p=>p.email===t.email),waiting=ps.filter(p=>p.status==="submitted").length,done=ps.filter(p=>p.status==="reviewed"||p.status==="completed").length;return <button className={selected===t.email?"active":""} key={t.email} onClick={()=>selectPerson(t)}><span>{t.fullName.split(" ").map(x=>x[0]).slice(0,2).join("")}</span><div><b>{t.fullName}</b><small>{t.cohort} · TARGET L{t.targetLevel}</small><p>{done} reviewed · {waiting} waiting</p></div></button>})}{!visible.length&&<p className="no-trainees">No trainees in this cohort.</p>}</aside>
+   <section className="review-pane">{person?<><div className="person-head"><div><small>TRAINEE RECORD</small><h2>{person.fullName}</h2><p>{person.email} · {person.cohort} · {(person.learningPath||"both").toUpperCase()} PATH · {person.experienceGoal}</p></div><div className="level-pill"><b>L{person.approvedLevel||"–"}</b><span>Approved level</span></div></div><div className="weekly-summary"><div><small>WEEK COMMENCING {currentWeek}</small><b>{effortWeek.toFixed(1)}<span> hours</span></b></div><article><span>Design documents</span><b>{designWeek.toFixed(1)}h</b></article><article><span>Configuration</span><b>{configurationWeek.toFixed(1)}h</b></article><article><span>UAT & evidence</span><b>{uatWeek.toFixed(1)}h</b></article></div>
+    <div className="level-approval"><div><small>LEVEL APPROVAL</small><p>Approve only the highest level consistently demonstrated through reviewed evidence.</p></div><select value={level} onChange={e=>setLevel(Number(e.target.value))}><option value="0">Not approved</option>{[1,2,3,4,5].map(x=><option key={x} value={x}>Level {x}</option>)}</select><input value={levelNote} onChange={e=>setLevelNote(e.target.value)} placeholder="Level decision note…"/><button onClick={approveLevel}>Save level</button></div>
+    <div className="review-toolbar"><small>SUBMISSIONS AND ACTIVITY</small><label><input type="checkbox" checked={queueOnly} onChange={e=>setQueueOnly(e.target.checked)}/> Awaiting review only</label></div>
+    {personProgress.length?<div className="submission-list">{personProgress.map(p=>{const h=personWeek.find(x=>x.taskId===p.itemId),taskHours=((h?.designMinutes||0)+(h?.configurationMinutes||0)+(h?.uatMinutes||0))/60,draft=aiDraft[p.itemId],mode=reviewMode[p.itemId]||"manual";return <article key={p.itemId}><div className="submission-head"><span>{p.itemId}</span><div><b>{p.title}</b><small>{p.area} · LEVEL {p.level} · {new Date(p.updatedAt).toLocaleDateString()}</small></div><em className={p.status}>{labels[p.status]}</em></div><div className="task-effort"><small>THIS WEEK</small><b>{taskHours.toFixed(1)} hours</b><span>Design {((h?.designMinutes||0)/60).toFixed(1)}h · Config {((h?.configurationMinutes||0)/60).toFixed(1)}h · UAT {((h?.uatMinutes||0)/60).toFixed(1)}h</span></div><div className="trainee-evidence"><small>TRAINEE NOTES / EVIDENCE</small><p>{p.notes||"No evidence summary supplied."}</p></div><div className="submitted-docs">{documents.filter(d=>d.taskId===p.itemId).map(d=><a key={d.id} href={`/api/documents?id=${d.id}`}><b>{d.documentType.toUpperCase()}</b><span>{d.fileName}</span><small>{Math.round(d.sizeBytes/1024)} KB</small></a>)}{!documents.some(d=>d.taskId===p.itemId)&&<p>No Design or UAT document uploaded.</p>}</div><section className="validation-box"><div className="validation-head"><div><small>VALIDATION METHOD</small><b>{mode==="ai"?"AI-assisted draft":"Manual trainer review"}</b></div><div><button className={mode==="manual"?"active":""} onClick={()=>setReviewMode(x=>({...x,[p.itemId]:"manual"}))}>Manual</button><button className={mode==="ai"?"active":""} onClick={()=>setReviewMode(x=>({...x,[p.itemId]:"ai"}))}>AI-assisted</button></div></div>{mode==="ai"&&<div className="ai-review"><p><b>Human approval required.</b> Paste relevant, non-sensitive submission content or your observations. Do not include unmasked client, employee or personal data.</p><textarea value={aiInput[p.itemId]||""} onChange={e=>setAiInput(x=>({...x,[p.itemId]:e.target.value}))} placeholder="Paste the key content from the Design/UAT document, configuration evidence, or trainer observations…"/><button disabled={aiLoading===p.itemId} onClick={()=>generateAiReview(p)}>{aiLoading===p.itemId?"Generating draft…":"Generate AI validation draft"}</button>{aiError[p.itemId]&&<p className="ai-error">{aiError[p.itemId]}</p>}{draft&&<div className="ai-result"><div><small>AI RECOMMENDATION</small><b>{draft.recommendation.toUpperCase()} · {Object.values(draft.scores).reduce((a,b)=>a+b,0)}/20</b></div><p><b>Strengths:</b> {draft.strengths.join(" · ")||"None identified"}</p><p><b>Gaps:</b> {draft.gaps.join(" · ")||"None identified"}</p><p><b>Questions:</b> {draft.questions.join(" · ")||"None suggested"}</p><button onClick={()=>applyAiDraft(p)}>Apply draft to scores & feedback</button></div>}</div>}</section><div className="task-score-inputs">{["Requirement","Design","UAT","Evidence"].map((x,i)=><label key={x}>{x}<input type="number" min="0" max="5" value={taskScores(p)[i]} onChange={e=>setTaskScore(p,i,Number(e.target.value))}/><span>/5</span></label>)}<b>{taskScores(p).reduce((a,b)=>a+b,0)}/20</b></div><label>Trainer feedback<textarea value={feedback[p.itemId]??p.trainerFeedback} onChange={e=>setFeedback({...feedback,[p.itemId]:e.target.value})} placeholder="What was done well, what must be corrected, and what evidence is still needed…"/></label><div className="review-actions"><button onClick={()=>review(p,"in_progress")}>Return for changes</button><button onClick={()=>review(p,"reviewed")}>Mark reviewed</button><button className="approve" onClick={()=>review(p,"completed")}>Approve task ✓</button></div></article>})}</div>:<div className="trainer-empty"><b>No matching activity</b><p>This trainee has not recorded work in the selected view.</p></div>}{message&&<div className="trainer-message">{message}</div>}
+   </>:<div className="trainer-empty"><b>No trainee selected</b><p>Registered trainees will appear here.</p></div>}</section>
+  </section>
+ </main>;
+}

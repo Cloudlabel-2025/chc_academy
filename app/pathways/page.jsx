@@ -1,0 +1,73 @@
+import "./pathways.css";
+
+const plans=[
+ {name:"Foundation",depth:"Core delivery knowledge",detail:"A structured route through essential concepts, practical examples and foundational assignments.",fit:"Best for new starters and professionals rebuilding core knowledge."},
+ {name:"Practitioner",depth:"End-to-end applied capability",detail:"Complete requirements, designs, configuration evidence, UAT packs and interview practice.",fit:"Best for trainees building credible project-delivery evidence."},
+ {name:"Practitioner Guided",depth:"Applied capability + expert support",detail:"The Practitioner programme with a governed allowance of 10 expert-support hours.",fit:"Best when complex work needs scheduled review and direction."}
+];
+
+export default function PathwaysPage(){
+  return (
+    <main className="pathways-page">
+      <header>
+        <a href="/"><img src="/chc-logo.png" alt="CHC"/><span><b>CHC · ORACLE HCM</b><small>ACADEMY</small></span></a>
+        <nav><a href="/">Learning site</a><a href="/dashboard">My dashboard</a></nav>
+      </header>
+      <section className="pathway-intro">
+        <small>ONE ACADEMY · TWO CUSTOMER ROUTES</small>
+        <h1>Choose the route that matches why you are learning.</h1>
+        <p>The learning content is shared and quality-controlled. Your route determines how it is organised, what appears on your dashboard and how progress is measured.</p>
+      </section>
+      <section className="route-grid">
+        <article>
+          <span>01</span>
+          <small>STRUCTURED CAREER DEVELOPMENT</small>
+          <h2>Career Academy</h2>
+          <p>For graduates, career changers and developing Oracle consultants who need an ordered journey rather than isolated lessons.</p>
+          <ul>
+            <li>Choose Functional, Technical or Both</li>
+            <li>Follow sequenced lessons and task banks</li>
+            <li>Submit design, configuration and UAT evidence</li>
+            <li>Prepare for project work and interviews</li>
+          </ul>
+          <a href="/dashboard">Choose Career Academy →</a>
+        </article>
+        <article>
+          <span>02</span>
+          <small>FOCUSED SKILL DEVELOPMENT</small>
+          <h2>Professional Mastery</h2>
+          <p>For working Oracle professionals who want to master one module or technical area for a project, role or client need.</p>
+          <ul>
+            <li>Choose one functional or technical area</li>
+            <li>Concentrate the dashboard on that product</li>
+            <li>Build evidence against practical requirements</li>
+            <li>Add guided expert support when needed</li>
+          </ul>
+          <a href="/dashboard">Choose Professional Mastery →</a>
+        </article>
+      </section>
+      <section className="programme-section">
+        <div>
+          <small>PROGRAMME DEPTH</small>
+          <h2>Clear names. Assessment levels stay behind the scenes.</h2>
+          <p>Task levels remain visible inside lessons and trainer reviews, but the subscription choices use outcome-based names.</p>
+        </div>
+        <div className="programme-grid">
+          {plans.map((p,i)=>(
+            <article key={p.name}>
+              <span>{String(i+1).padStart(2,"0")}</span>
+              <h3>{p.name}</h3>
+              <b>{p.depth}</b>
+              <p>{p.detail}</p>
+              <small>{p.fit}</small>
+            </article>
+          ))}
+        </div>
+      </section>
+      <footer>
+        <a href="/dashboard">Create or update my programme →</a>
+        <p>Trainers continue to approve task completion and capability levels.</p>
+      </footer>
+    </main>
+  );
+}
