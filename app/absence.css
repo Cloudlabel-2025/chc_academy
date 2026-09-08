@@ -1,0 +1,1 @@
+.next-module>button{border:1px solid var(--mint);background:transparent;color:var(--mint);padding:12px 16px;font-size:8px;font-weight:900;letter-spacing:.12em}@media(max-width:800px){.next-module>button{grid-column:2;justify-self:start}}@media(max-width:500px){.next-module>button{grid-column:auto}}

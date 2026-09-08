@@ -1,0 +1,37 @@
+{
+  "name": "oracle-hcm-approvals-academy",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "bootstrap": "^5.3.3",
+    "bootstrap-icons": "^1.11.3",
+    "cloudinary": "^2.5.1",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.10.1",
+    "next": "^16.2.6",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.8",
+    "@types/node": "^22.13.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "eslint": "^9.20.0",
+    "eslint-config-next": "^16.2.6",
+    "typescript": "^5.7.3"
+  },
+  "type": "module",
+  "displayName": "Oracle HCM Approvals Academy"
+}
